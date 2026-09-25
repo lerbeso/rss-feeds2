@@ -3,17 +3,16 @@ import re
 import urllib.request
 from datetime import datetime
 
-URL_CIBLE = "https://www.webgirondins.com/fil-info"
+URL_CIBLE = "https://webgirondins.com"
 FICHIER_SORTIE = "flux.xml"
 
 def extraire_articles(html):
     articles = []
     
-    # Étape 1 : On isole la zone textuelle ou les blocs de titres de la page
-    # Cette regex cherche les titres dans les balises de structure H2 ou les marqueurs d'actualité
+    # Étape 1 : Recherche des titres dans les balises de structure H2
     blocs_titres = re.findall(r'<h2[^>]*>(.*?)</h2>', html, re.DOTALL)
     
-    # Si le site utilise une structure imbriquée différente (ex: class="title-brève")
+    # Si le site utilise une structure imbriquée différente
     if not blocs_titres:
         blocs_titres = re.findall(r'class="[^"]*title[^"]*"[^>]*><a[^>]*>(.*?)</a>', html, re.DOTALL)
 
@@ -30,7 +29,7 @@ def extraire_articles(html):
         if lien_match:
             lien = lien_match.group(1)
             if lien.startswith('/'):
-                lien = f"https://www.webgirondins.com{lien}"
+                lien = f"https://webgirondins.com{lien}"
         else:
             # Fallback : Génère une ancre propre si le lien brut n'est pas capturé
             slug = re.sub(r'[^a-zA-Z0-9-]', '', titre.lower().replace(' ', '-'))
@@ -39,7 +38,8 @@ def extraire_articles(html):
         # Échappement des caractères XML sensibles
         titre = titre.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
         
-        if (titre, lien) Brassé pas in articles:
+        # CORRECTION ICI : Syntaxe Python correcte
+        if (titre, lien) not in articles:
             articles.append((titre, lien))
             
     return articles[:20]  # Limite aux 20 derniers articles trouvés
@@ -56,7 +56,6 @@ def generer_xml(articles):
     xml.append('    <description>Actualités en direct des Girondins de Bordeaux</description>')
     xml.append('    <language>fr-fr</language>')
     xml.append(f'    <lastBuildDate>{date_actuelle}</lastBuildDate>')
-    xml.append(f'    <atom:link href="https://github.io{FICHIER_SORTIE}" rel="self" type="application/rss+xml" />')
     
     for titre, lien in articles:
         xml.append('    <item>')
@@ -85,17 +84,17 @@ def main():
         
         articles = extraire_articles(html)
         
-        # Si l'analyse HTML échoue toujours, on traite la structure brute différemment
+        # Si l'analyse HTML des balises H2 échoue, fallback sur les liens textuels
         if not articles:
-            # Analyse secondaire basée sur les structures de liens directes textuelles
             liens_bruts = re.findall(r'<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>', html, re.DOTALL)
             for lien, texte in liens_bruts:
                 texte_propre = re.sub(r'<[^>]+>', '', texte).strip()
-                if "Girondins" in texte_propre and len(texte_propre) > 20:
+                if any(x in texte_propre for x in ["Girondins", "Bordeaux", "FCGB", "Mercato"]) and len(texte_propre) > 15:
                     if lien.startswith('/'):
-                        lien = f"https://www.webgirondins.com{lien}"
+                        lien = f"https://webgirondins.com{lien}"
                     texte_propre = texte_propre.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-                    articles.append((texte_propre, lien))
+                    if (texte_propre, lien) not in articles:
+                        articles.append((texte_propre, lien))
         
         # Sécurité finale si aucun article trouvé
         if not articles:
