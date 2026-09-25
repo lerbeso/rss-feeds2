@@ -1,0 +1,30 @@
+name: Actualiser le Flux RSS WebGirondins
+
+on:
+  schedule:
+    # S'exécute automatiquement toutes les heures
+    - cron: '0 * * * *'
+  workflow_dispatch: # Permet de lancer la mise à jour manuellement si besoin
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Récupérer le code du dépôt
+      uses: actions/checkout@v3
+
+    - name: Configurer Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Executer le script de mise à jour
+      run: python update_rss.py
+
+    - name: Sauvegarder les modifications sur GitHub
+      run: |
+        git config --global user.name 'GitHub Actions Bot'
+        git config --global user.email 'actions@github.com'
+        git add flux.xml
+        git commit -m "Mise à jour automatique du flux RSS" || exit 0
+        git push
